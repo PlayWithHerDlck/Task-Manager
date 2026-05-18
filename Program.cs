@@ -7,7 +7,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace InteractiveTaskManager
 {
-    #region 1. СЛОЙ ЗАВИСИМОСТЕЙ (DI) И ПАТТЕРН СТРАТЕГИЯ
 
     public interface ILogger
     {
@@ -19,7 +18,6 @@ namespace InteractiveTaskManager
         ValueTask SaveAsync<T>(T data);
     }
 
-    // Реализация интерактивного логгера, который пишет в выделенную зону экрана
     public class InteractiveLogger : ILogger
     {
         private static readonly object ConsoleLock = new();
@@ -28,17 +26,12 @@ namespace InteractiveTaskManager
         {
             lock (ConsoleLock)
             {
-                // Запоминаем где стоял курсор ввода пользователя
                 int left = Console.CursorLeft;
                 int top = Console.CursorTop;
-
-                // Переносим курсор в зону логов (с 10-й строки)
                 Console.SetCursorPosition(0, 12);
                 Console.ForegroundColor = color;
                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] {message}".PadRight(Console.WindowWidth - 1));
                 Console.ResetColor();
-
-                // Возвращаем курсор обратно для корректного отображения меню
                 Console.SetCursorPosition(left, top);
             }
         }
@@ -55,10 +48,6 @@ namespace InteractiveTaskManager
             return ValueTask.CompletedTask;
         }
     }
-
-    #endregion
-
-    #region 2. ОПТИМИЗИРОВАННОЕ ЯДРО (Generics, ValueTask, ConcurrentQueue)
 
     public enum TaskStatus { Created, Running, Completed, Failed }
 
@@ -79,7 +68,6 @@ namespace InteractiveTaskManager
         private readonly ILogger _logger;
         private CancellationTokenSource? _cts;
 
-        // DI-конструктор
         public TaskBroker(IStorageStrategy storageStrategy, ILogger logger)
         {
             _storageStrategy = storageStrategy;
@@ -88,7 +76,6 @@ namespace InteractiveTaskManager
 
         public int QueueCount => _taskQueue.Count;
 
-        // Добавление задачи через Span без лишних аллокаций строк
         public void AddTaskFromUi(ReadOnlySpan<char> commandName, T payload)
         {
             var context = new TaskContext<T>(payload);
@@ -116,12 +103,10 @@ namespace InteractiveTaskManager
                     context.Status = TaskStatus.Running;
                     _logger.Log($"[WORKER {workerId}] Взял задачу {context.Id.ToString().Substring(0,8)} в работу...", ConsoleColor.Yellow);
 
-                    // Высокочастотный вызов через ValueTask
                     await ProcessTaskAsync(context, workerId, cancellationToken);
                 }
                 else
                 {
-                    // Ожидание без утилизации процессора
                     await Task.Delay(100, cancellationToken);
                 }
             }
@@ -165,10 +150,6 @@ namespace InteractiveTaskManager
         }
     }
 
-    #endregion
-
-    #region 3. ИНТЕРФЕЙС И УПРАВЛЕНИЕ СТРЕЛОЧКАМИ
-
     class Program
     {
         static async Task Main(string[] args)
@@ -176,7 +157,6 @@ namespace InteractiveTaskManager
             Console.Clear();
             Console.CursorVisible = false;
 
-            // Настройка DI Контейнера
             var serviceProvider = new ServiceCollection()
                 .AddSingleton<ILogger, InteractiveLogger>()
                 .AddSingleton<IStorageStrategy, DatabaseStorageStrategy>()
@@ -216,7 +196,6 @@ namespace InteractiveTaskManager
                         break;
 
                     case ConsoleKey.Enter:
-                        // Парсинг через ReadOnlySpan прямо "из воздуха" (AsSpan)
                         ReadOnlySpan<char> cmdHeader = "CMD_GENERIC".AsSpan();
                         broker.AddTaskFromUi(cmdHeader, scenarios[selectedIndex]);
                         break;
@@ -227,7 +206,6 @@ namespace InteractiveTaskManager
                 }
             }
 
-            // Безопасное закрытие системы по кнопке Esc
             Console.SetCursorPosition(0, 10);
             await broker.StopWorkersAsync();
             Console.CursorVisible = true;
@@ -264,11 +242,9 @@ namespace InteractiveTaskManager
                 Console.WriteLine(new string('-', Console.WindowWidth - 1));
                 Console.SetCursorPosition(0, 11);
                 Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.WriteLine("--- ЖИВОЙ ЛОГ ОБРАБОТКИ СИСТЕМЫ (CORE) ---");
+                Console.WriteLine("--- ЛОГ ОБРАБОТКИ СИСТЕМЫ (CORE) ---");
                 Console.ResetColor();
             }
         }
     }
-
-    #endregion
 }
