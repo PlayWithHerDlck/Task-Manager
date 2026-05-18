@@ -127,17 +127,13 @@ namespace InteractiveTaskManager
             }
         }
 
-        // Оптимизированный по памяти метод обработки
         private async ValueTask ProcessTaskAsync(TaskContext<T> context, int workerId, CancellationToken token)
         {
             try
             {
-                // Имитация бурной деятельности воркера (2.5 секунды)
+                // Имитация бурной деятельности
                 await Task.Delay(2500, token);
-
-                // Сохранение через стратегию
                 await _storageStrategy.SaveAsync(context.Payload);
-
                 context.Status = TaskStatus.Completed;
                 _logger.Log($"[WORKER {workerId}] Успешно ВЫПОЛНИЛ задачу {context.Id.ToString().Substring(0,8)}!", ConsoleColor.Green);
             }
@@ -190,7 +186,7 @@ namespace InteractiveTaskManager
             var broker = serviceProvider.GetRequiredService<TaskBroker<string>>();
             var logger = serviceProvider.GetRequiredService<ILogger>();
 
-            // Запускаем 2 параллельных воркера
+
             broker.StartWorkers(workerCount: 2);
 
             var scenarios = new[]
@@ -203,7 +199,7 @@ namespace InteractiveTaskManager
             int selectedIndex = 0;
             bool isRunning = true;
 
-            // Основной интерактивный цикл UI
+
             while (isRunning)
             {
                 RenderMenu(scenarios, selectedIndex, broker.QueueCount);
